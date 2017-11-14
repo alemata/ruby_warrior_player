@@ -15,7 +15,7 @@ class Player
 
   def play_turn(warrior)
     @warrior = warrior
-    rescue_captive || attack || handle_low_health || walk
+    rescue_captive || shoot || handle_low_health || walk
 
     @health = warrior.health
   end
@@ -34,17 +34,17 @@ class Player
     end
   end
 
+  # Rest on low_health when no under attack
   def handle_low_health
     if @warrior.health < 20
       if !under_attack?
         @warrior.rest!
-      else
-        @warrior.walk!
+        return true
       end
-      return true
     end
   end
 
+  # Try to resuce captives
   def rescue_captive
     each_direction do |dir|
       #Rescue near captive
@@ -63,36 +63,44 @@ class Player
     end
   end
 
-  def attack
+  # Shoot enemys nearby
+  def shoot
     #First check if there is an archer enemy in any direction and attack if so
-    dir = dir_with_archer
-    if dir
-      @warrior.shoot!(dir)
-      return true
-    else
-      each_direction do |dir|
-        enemy_to_shoot = enemy_to_shoot?(dir)
-        if enemy_to_shoot
-          @warrior.shoot!(dir)
-          return true
-        end
+    return true if shoot_archer
+
+    each_direction do |dir|
+      enemy_to_shoot = enemy_to_shoot?(dir)
+      if enemy_to_shoot
+        @warrior.shoot!(dir)
+        return true
       end
     end
   end
 
-  def dir_with_archer
+  # Shoot the archer if there is one in any position
+  def shoot_archer
+    dir = archer_direction
+    if dir
+      @warrior.shoot!(dir)
+      return true
+    end
+  end
+
+  # Return the dir of the archer if there is one
+  def archer_direction
     DIRECTIONS.find do |dir|
-      # Check if there is an archer to shoot in the dir direction
       enemy_to_shoot?(dir, "a")
     end
   end
 
+  # Check if there is an enemy to shoot in the direction
+  # if character is present it checks for that type of enemy
   def enemy_to_shoot?(dir, character = nil)
     spaces = @warrior.look(dir)
     space = spaces.find{ |space| space.enemy? }
     if space
       not_captives = spaces[0..space.location.first - 1].all? { |space| !space.captive? }
-      return not_captives && space.unit.character == character if character
+      not_captives &= space.unit.character == character if character
       return not_captives
     end
   end
