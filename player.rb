@@ -55,8 +55,17 @@ class Player
 
   def rescue_captive
     each_direction do |dir|
+      #Rescue near captive
       if @warrior.feel(dir).captive?
         @warrior.rescue!(dir)
+        return true
+      end
+
+      #See if there are any captive to rescue nearby
+      spaces = @warrior.look(dir)
+      space = spaces.find{ |space| space.captive? }
+      if space
+        @warrior.walk!(dir)
         return true
       end
     end
