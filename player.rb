@@ -11,7 +11,6 @@ class Player
 
   def initialize()
     @health = 20
-    @direction = :forward
   end
 
   def play_turn(warrior)
@@ -36,13 +35,6 @@ class Player
   end
 
   def handle_low_health
-    if @warrior.health < 10
-      if under_attack? && !@warrior.feel(:forward).enemy?
-        @warrior.walk!(:backward)
-        return true
-      end
-    end
-
     if @warrior.health < 20
       if !under_attack?
         @warrior.rest!
@@ -72,6 +64,7 @@ class Player
   end
 
   def attack
+    #First check if there is an archer enemy in any direction and attack if so
     dir = dir_with_archer
     if dir
       @warrior.shoot!(dir)
