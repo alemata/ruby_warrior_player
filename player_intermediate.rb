@@ -16,13 +16,22 @@ class Player
   def play_turn(warrior)
     @warrior = warrior
     @enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
+    @listen = @warrior.listen
     bind_enemy || shoot || handle_low_health ||rescue_captive || walk
 
     @health = warrior.health
   end
 
   def walk
-    @warrior.walk!(@warrior.direction_of_stairs)
+    enemy_space = @listen.find{ |space| space.enemy? }
+    captive_space = @listen.find{ |space| space.captive? }
+    if enemy_space
+      @warrior.walk!(@warrior.direction_of(enemy_space))
+    elsif captive_space
+      @warrior.walk!(@warrior.direction_of(captive_space))
+    else
+      @warrior.walk!(@warrior.direction_of_stairs)
+    end
     return true
   end
 
