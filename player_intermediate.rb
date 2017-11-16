@@ -16,23 +16,46 @@ class Player
   def play_turn(warrior)
     @warrior = warrior
     @enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
+    @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
+
     bind_enemy || shoot || handle_low_health ||rescue_captive || walk
 
     @health = warrior.health
   end
 
   def walk
-    enemy_space = @listen.find{ |space| space.enemy? }
-    captive_space = @listen.find{ |space| space.captive? }
-    if enemy_space
-      @warrior.walk!(@warrior.direction_of(enemy_space))
-    elsif captive_space
-      @warrior.walk!(@warrior.direction_of(captive_space))
-    else
-      @warrior.walk!(@warrior.direction_of_stairs)
-    end
+    dir = direction_to_walk
+    @warrior.walk!(direction_to_walk)
     return true
+  end
+
+  def empty_tower?
+    @listen.count{ |space| space.enemy? || space.captive?} == 0
+  end
+
+  def empty_space
+    DIRECTIONS.find { |dir| @warrior.feel(dir).empty? && !@warrior.feel(dir).stairs? }
+  end
+
+  def direction_to_walk
+    if empty_tower?
+      dir = @warrior.direction_of_stairs
+    else
+      enemy_space = @listen.find{ |space| space.enemy? }
+      captive_space = @listen.find{ |space| space.captive? }
+      if enemy_space
+        dir = @warrior.direction_of(enemy_space)
+      elsif captive_space
+        dir = @warrior.direction_of(captive_space)
+      end
+
+      if dir && @warrior.feel(dir).stairs?
+        dir = empty_space
+      end
+    end
+
+    dir
   end
 
   def under_attack?
