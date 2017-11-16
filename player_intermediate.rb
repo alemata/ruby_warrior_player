@@ -19,7 +19,7 @@ class Player
     @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
 
-    bind_enemy || shoot || handle_low_health ||rescue_captive || walk
+    bind_enemy || rescue_ticking || shoot || handle_low_health || rescue_captive || walk
 
     @health = warrior.health
   end
@@ -87,9 +87,27 @@ class Player
     end
   end
 
+  # Try to resuce ticking captives
+  def rescue_ticking
+    each_direction do |dir|
+      if @warrior.feel(dir).captive? && @warrior.feel(dir).ticking? && @warrior.feel(dir).unit.character == "C"
+        @warrior.rescue!(dir)
+        return true
+      end
+    end
+
+    ticking_space = @listen.find { |space| space.ticking? }
+    if ticking_space
+      dir = @warrior.direction_of(ticking_space)
+      return true if shoot_to(dir)
+      @warrior.walk!(@warrior.direction_of(ticking_space))
+      return true
+    end
+  end
+
   def bind_enemy
     if @enemys_count > 1
-      dir_with_enemy = DIRECTIONS.find { |dir| @warrior.feel(dir).enemy? }
+      dir_with_enemy = enemy_to_bind_dir
       if dir_with_enemy
         @warrior.bind!(dir_with_enemy)
         return true
@@ -97,13 +115,24 @@ class Player
     end
   end
 
+  def enemy_to_bind_dir
+    ticking_space = @listen.find { |space| space.ticking? }
+    ticking_dir = @warrior.direction_of(ticking_space)
+
+    (DIRECTIONS - [ticking_dir]).find { |dir| @warrior.feel(dir).enemy? }
+  end
+
+  def shoot_to(dir)
+    if @warrior.feel(dir).enemy?
+      @warrior.attack!(dir)
+      return true
+    end
+  end
+
   # Shoot enemys nearby
   def shoot
     each_direction do |dir|
-      if @warrior.feel(dir).enemy?
-        @warrior.attack!(dir)
-        return true
-      end
+      return true if shoot_to(dir)
     end
   end
 end
