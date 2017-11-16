@@ -19,7 +19,7 @@ class Player
     @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
 
-    detonate_bomb || bind_enemy || rescue_ticking || shoot || handle_low_health || rescue_captive || walk
+    bind_enemy || handle_low_health || rescue_ticking || detonate_bomb || shoot || rescue_captive || walk
 
     @health = warrior.health
   end
@@ -64,7 +64,7 @@ class Player
 
   # Rest on low_health when no under attack
   def handle_low_health
-    if @warrior.health < 20
+    if @warrior.health < 12 && !under_attack?
       @warrior.rest!
       return true
     end
@@ -99,6 +99,7 @@ class Player
     ticking_space = @listen.find { |space| space.ticking? }
     if ticking_space
       dir = @warrior.direction_of(ticking_space)
+      return true if detonate_bomb_to(dir)
       return true if shoot_to(dir)
       @warrior.walk!(@warrior.direction_of(ticking_space))
       return true
@@ -131,13 +132,17 @@ class Player
 
   def detonate_bomb
     each_direction do |dir|
-      look = @warrior.look(dir)
-      amount = look.count { |space| space.enemy? }
-      if amount > 1 && @health >= 10 && @warrior.feel(dir).enemy?
-        @warrior.detonate!
-        return true
-      end
-      return true if shoot_to(dir)
+      return true if detonate_bomb_to(dir)
+    end
+  end
+
+  def detonate_bomb_to(dir)
+    return false if @warrior.health <= 10
+    look = @warrior.look(dir)
+    amount = look.count { |space| space.enemy? }
+    if amount > 1 && @health >= 10 && @warrior.feel(dir).enemy?
+      @warrior.detonate!
+      return true
     end
   end
 
