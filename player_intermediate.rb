@@ -19,7 +19,7 @@ class Player
     @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
 
-    bind_enemy || rescue_ticking || shoot || handle_low_health || rescue_captive || walk
+    detonate_bomb || bind_enemy || rescue_ticking || shoot || handle_low_health || rescue_captive || walk
 
     @health = warrior.health
   end
@@ -126,6 +126,18 @@ class Player
     if @warrior.feel(dir).enemy?
       @warrior.attack!(dir)
       return true
+    end
+  end
+
+  def detonate_bomb
+    each_direction do |dir|
+      look = @warrior.look(dir)
+      amount = look.count { |space| space.enemy? }
+      if amount > 1 && @health >= 10 && @warrior.feel(dir).enemy?
+        @warrior.detonate!
+        return true
+      end
+      return true if shoot_to(dir)
     end
   end
 
