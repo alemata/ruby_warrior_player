@@ -1,7 +1,7 @@
 class Player
 
-  DIRECTIONS = [:forward, :left, :right, :backward]
-  OPOSITE_DIRS = {
+  DIRECTIONS ||= [:forward, :left, :right, :backward]
+  OPOSITE_DIRS ||= {
     forward: :backward,
     left: :right,
     right: :left,
@@ -21,8 +21,6 @@ class Player
 
   def play_turn(warrior)
     @warrior = warrior
-    @enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
-    @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
     @last_walk_dir = :forward
 
@@ -75,8 +73,7 @@ class Player
   end
 
   def under_attack?
-    enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
-    enemys_count > 0 && @health > @warrior.health
+    feel_enemies_count > 0 && @health > @warrior.health
   end
 
   # Rest on low_health when no under attack
@@ -101,23 +98,31 @@ class Player
   def rescue_captive
     each_direction do |dir|
       #Rescue near captive
-      if @warrior.feel(dir).captive? && @warrior.feel(dir).unit.character == "C"
+      if real_captive?(dir)
         @warrior.rescue!(dir)
         return true
       end
 
-      #Rescue enemy if no more enemies
-      if @enemys_count.zero? && @warrior.feel(dir).captive? && @warrior.feel(dir).unit.character != "C"
+      #Rescue captive enemy if no more enemies
+      if feel_enemies_count.zero? && enemy_captive?(dir)
         @warrior.rescue!(dir)
         return true
       end
     end
   end
 
+  def enemy_captive?(dir)
+    @warrior.feel(dir).captive? && @warrior.feel(dir).unit.character != "C"
+  end
+
+  def real_captive?(dir)
+    @warrior.feel(dir).captive? && @warrior.feel(dir).unit.character == "C"
+  end
+
   # Try to resuce ticking captives
   def rescue_ticking
     each_direction do |dir|
-      if @warrior.feel(dir).captive? && @warrior.feel(dir).ticking? && @warrior.feel(dir).unit.character == "C"
+      if @warrior.feel(dir).captive? && real_captive?(dir)
         @warrior.rescue!(dir)
         return true
       end
@@ -142,7 +147,7 @@ class Player
   end
 
   def bind_enemy
-    if @enemys_count > 1
+    if feel_enemies_count > 1
       dir_with_enemy = enemy_to_bind_dir
       if dir_with_enemy
         @warrior.bind!(dir_with_enemy)
@@ -186,5 +191,9 @@ class Player
     each_direction do |dir|
       return true if shoot_to(dir)
     end
+  end
+
+  def feel_enemies_count
+    DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
   end
 end
