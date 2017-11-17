@@ -103,11 +103,15 @@ class Player
         return true
       end
 
-      #Rescue captive enemy if no more enemies
-      if feel_enemies_count.zero? && enemy_captive?(dir)
-        @warrior.rescue!(dir)
-        return true
-      end
+      return true if rescue_enemy_captive(dir)
+    end
+  end
+
+  def rescue_enemy_captive(dir)
+    #Rescue captive enemy if no more enemies
+    if feel_enemies_count.zero? && enemy_captive?(dir)
+      @warrior.rescue!(dir)
+      return true
     end
   end
 
