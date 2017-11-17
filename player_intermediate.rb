@@ -1,6 +1,12 @@
 class Player
 
   DIRECTIONS = [:forward, :left, :right, :backward]
+  OPOSITE_DIRS = {
+    forward: :backward,
+    left: :right,
+    right: :left,
+    backward: :forward
+  }
 
   def each_direction(&block)
     DIRECTIONS.each do |direction|
@@ -18,6 +24,7 @@ class Player
     @enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
     @captives_count = DIRECTIONS.count { |dir| @warrior.feel(dir).captive? }
     @listen = @warrior.listen
+    @last_walk_dir = :forward
 
     bind_enemy || handle_low_health || rescue_ticking || detonate_bomb || shoot || rescue_captive || walk
 
@@ -30,11 +37,20 @@ class Player
     return true
   end
 
+  def walk_to(dir)
+    @warrior.walk!(dir)
+    @last_walk_dir = dir
+  end
+
   def empty_tower?
     @listen.count{ |space| space.enemy? || space.captive?} == 0
   end
 
-  def empty_space
+  def no_enemies?
+    @listen.count{ |space| space.enemy?} == 0
+  end
+
+  def empty_dir
     DIRECTIONS.find { |dir| @warrior.feel(dir).empty? && !@warrior.feel(dir).stairs? }
   end
 
@@ -51,7 +67,7 @@ class Player
       end
 
       if dir && @warrior.feel(dir).stairs?
-        dir = empty_space
+        dir = empty_dir
       end
     end
 
@@ -59,14 +75,25 @@ class Player
   end
 
   def under_attack?
-    @health > @warrior.health
+    enemys_count = DIRECTIONS.count { |dir| @warrior.feel(dir).enemy? }
+    enemys_count > 0 && @health > @warrior.health
   end
 
   # Rest on low_health when no under attack
   def handle_low_health
-    if @warrior.health < 12 && !under_attack?
-      @warrior.rest!
-      return true
+    ticking_space = @listen.find { |space| space.ticking? }
+    if !(ticking_space && no_enemies?)
+      if ticking_space
+        if @warrior.health < 13 && !under_attack?
+          @warrior.rest!
+          return true
+        end
+      else 
+        if !(ticking_space && no_enemies?) && @warrior.health < 16 && !under_attack?
+          @warrior.rest!
+          return true
+        end
+      end
     end
   end
 
@@ -99,9 +126,17 @@ class Player
     ticking_space = @listen.find { |space| space.ticking? }
     if ticking_space
       dir = @warrior.direction_of(ticking_space)
-      return true if detonate_bomb_to(dir)
-      return true if shoot_to(dir)
-      @warrior.walk!(@warrior.direction_of(ticking_space))
+      if @warrior.feel(dir).enemy?
+        distance = @warrior.distance_of(ticking_space)
+        new_dir = empty_dir
+        if new_dir && new_dir != OPOSITE_DIRS[@last_walk_dir]
+          dir = new_dir
+        else
+          return true if detonate_bomb_to(dir)
+          return true if shoot_to(dir)
+        end
+      end
+      walk_to(dir)
       return true
     end
   end
@@ -118,7 +153,7 @@ class Player
 
   def enemy_to_bind_dir
     ticking_space = @listen.find { |space| space.ticking? }
-    ticking_dir = @warrior.direction_of(ticking_space)
+    ticking_dir = @warrior.direction_of(ticking_space) if ticking_space
 
     (DIRECTIONS - [ticking_dir]).find { |dir| @warrior.feel(dir).enemy? }
   end
@@ -137,10 +172,10 @@ class Player
   end
 
   def detonate_bomb_to(dir)
-    return false if @warrior.health <= 10
+    return false if @warrior.health <= 4
     look = @warrior.look(dir)
     amount = look.count { |space| space.enemy? }
-    if amount > 1 && @health >= 10 && @warrior.feel(dir).enemy?
+    if amount > 1 && @warrior.feel(dir).enemy?
       @warrior.detonate!
       return true
     end
