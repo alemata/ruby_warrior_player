@@ -24,29 +24,23 @@ class Player
   end
 
   def bind_enemy
-    if feel_enemies_count > 1
-      dir_with_enemy = enemy_to_bind_dir
-      if dir_with_enemy
-        @warrior.bind!(dir_with_enemy)
-        return true
-      end
-    end
+    return unless feel_enemies_count > 1
+    dir_with_enemy = enemy_to_bind_dir
+    @warrior.bind!(dir_with_enemy) if dir_with_enemy
   end
 
   # Rest on low_health when no under attack
   def handle_low_health
-    ticking_space = @listen.find { |space| space.ticking? }
-    return if ticking_space && no_enemies?
+    ticking_space = @listen.find(&:ticking?)
+    return if ticking_space && no_enemies? || under_attack?
     if ticking_space
-      if @warrior.health < 13 && !under_attack?
+      if @warrior.health < 13
         @warrior.rest!
         return true
       end
-    else
-      if !(ticking_space && no_enemies?) && @warrior.health < 16 && !under_attack?
-        @warrior.rest!
-        return true
-      end
+    elsif @warrior.health < 16
+      @warrior.rest!
+      return true
     end
   end
 
@@ -86,9 +80,7 @@ class Player
     return false if @warrior.health <= 4
     look = @warrior.look(dir)
     amount = look.count(&:enemy?)
-    if amount > 1 && @warrior.feel(dir).enemy?
-      @warrior.detonate!
-    end
+    @warrior.detonate! if amount > 1 && @warrior.feel(dir).enemy?
   end
 
   # Shoot enemys nearby
@@ -104,19 +96,23 @@ class Player
 
   # Try to resuce captives
   def rescue_captive
+    # Rescue real captives
     each_direction do |dir|
-      # Rescue near captive
-      if real_captive?(dir)
-        @warrior.rescue!(dir)
-      end
+      return true if rescue_captive_to(dir)
+    end
 
-      return true if rescue_enemy_captive(dir)
+    # Rescue enemy captive
+    each_direction do |dir|
+      return true if rescue_enemy_captive_to(dir)
     end
   end
 
-  def rescue_enemy_captive(dir)
-    # Rescue captive enemy if no more enemies
-    @warrior.rescue!(dir) if feel_enemies_count.zero? && enemy_captive?(dir)
+  def rescue_captive_to(dir)
+    @warrior.rescue!(dir) if real_captive?(dir)
+  end
+
+  def rescue_enemy_captive_to(dir)
+    @warrior.rescue!(dir) if enemy_captive?(dir)
   end
 
   def walk
@@ -129,19 +125,16 @@ class Player
   end
 
   def direction_to_walk
-    if empty_tower?
-      dir = @warrior.direction_of_stairs
-    else
-      enemy_space = @listen.find(&:enemy?)
-      captive_space = @listen.find(&:captive?)
-      if enemy_space
-        dir = @warrior.direction_of(enemy_space)
-      elsif captive_space
-        dir = @warrior.direction_of(captive_space)
-      end
-
-      dir = empty_dir if dir && @warrior.feel(dir).stairs?
+    return @warrior.direction_of_stairs if empty_tower?
+    enemy_space = @listen.find(&:enemy?)
+    captive_space = @listen.find(&:captive?)
+    if enemy_space
+      dir = @warrior.direction_of(enemy_space)
+    elsif captive_space
+      dir = @warrior.direction_of(captive_space)
     end
+
+    dir = empty_dir if dir && @warrior.feel(dir).stairs?
 
     dir
   end
