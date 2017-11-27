@@ -32,7 +32,7 @@ class Player
   # Rest on low_health when no under attack
   def handle_low_health
     ticking_space = @listen.find(&:ticking?)
-    return if empty_tower? || ticking_space && no_enemies? || under_attack?
+    return if can_miss_rest?
     if ticking_space
       if @warrior.health < 13
         @warrior.rest!
@@ -156,6 +156,16 @@ class Player
 
   def no_enemies?
     @listen.count(&:enemy?).zero?
+  end
+
+  def can_miss_rest?
+    (no_enemies? && no_enemies_captive?) ||
+      ticking_space && no_enemies? ||
+      under_attack?
+  end
+
+  def no_enemies_captive?
+    @listen.count {|space| space.captive? && space.unit.character != "C"}.zero?
   end
 
   def under_attack?
